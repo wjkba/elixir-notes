@@ -562,8 +562,56 @@ defmodule Games do
 end
 ```
 
+# Enums
 
-# Recursion
+
+np. Enum.filter - pierwszy argument to struktura danych (lista) a drugi to cos takiego jak callback function, ktora odpala sie na kazdym elemencie listy
+
+```elixir
+  def filter_games(game_list) do
+    Enum.filter(game_list, fn game -> game.in_stock && game.price <= 50 end)
+  end
+
+```
+
+przykład mapy
+```elixir
+  def print_list(game_list) do
+    Enum.map(game_list, fn game ->
+      "#{game.name} is #{if game.in_stock, do: "In stock", else: "Not available"}"
+    end)
+  end
+```
+
+przykład pętli przez mape, można robić pattern matching
+```elixir
+  def print(game) do
+    Enum.each(game, fn {key, value} -> IO.puts("#{key}: #{value}") end)
+  end
+```
+
+# Anonymous functions
+
+```elixir
+  def filter_games(game_list) do
+    Enum.filter(game_list, &(&1.in_stock && &1.price <= 50))
+  end
+```
+
+dla większych funkcji, można użyć named function
+```elixir
+  def filter_games(game_list) do
+    Enum.filter(game_list, &filter/1)
+  end
+
+  defp filter(game) do
+    game.in_stock && game.price <= 50
+  end
+```
+
+
+
+
 
 
 
