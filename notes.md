@@ -610,45 +610,84 @@ dla większych funkcji, można użyć named function
 ```
 
 
+# Structs
+
+definiowanie struct
+```elixir
+  defstruct [:name, :email]
+```
+
+z domyślnymi wartościami
+```elixir
+  defstruct name: "jakub", email: "jakub@gmail.com"
+```
+
+wymagaj kluczy
+```elixir
+  @enforce_keys [:name]
+  defstruct [:name, :email]
+```
+
+użycie na mapach:
+```elixir
+  @enforce_keys [:name]
+  defstruct [:name, :age, :is_cool, :can_drink]
+
+  def new("Jakub", age) do
+    %Users{name: "Jakub", age: age, is_cool: true, can_drink: true}
+  end
+```
+
+# ExUnit
+folder 'test' używany jest przez mix
 
 
+```bash
+mix test
+```
+mix odpala 'ExUnit.Start' a potem odpala reszte pików testowych w folderze
 
 
+```elixir
+defmodule UsersTest do
+  use ExUnit.Case, async: true
+end
+```
+'use' to makro, kod jest tutaj wstrzykiwany
+'async: true' pozwala na rownolegle testy
 
 
+```elixir
+defmodule UsersTest do
+  use ExUnit.Case, async: true
+
+  describe "Users module" do
+    test "new/0" do
+      default_user = Users.new()
+      refute default_user.can_drink
+    end
+  end
+end
+```
+refute - oczekuje false, assert - oczekuje true
 
 
+```elixir
+  setup_all do
+    %{user_name: "Jakub"}
+  end
+
+  describe "Users module" do
+    test "new/0", context do
+      IO.inspect(context)
+      default_user = Users.new()
+      refute default_user.can_drink
+    end
+  end
+```
+context daje szczególowe metadane
+setup_all wstrzykuje dane do kontekstu
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+'mix test --cover'
+cover review z dokumentacją, podsumowanie testów w html i ładne formatowanie terminal
