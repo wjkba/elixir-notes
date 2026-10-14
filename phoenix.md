@@ -255,3 +255,9 @@ można kilka pipe'ów po sobie odpalać, tutaj browser -> auth
     pipe_through [:browser, :auth]
     get "/", DashboardController, :index
 ```
+
+# Controllers
+intermediary step between http request and another function (action)
+ta funkcja musi akceptować argumenty (conn, params)
+
+
