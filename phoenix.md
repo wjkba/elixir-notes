@@ -260,4 +260,36 @@ można kilka pipe'ów po sobie odpalać, tutaj browser -> auth
 intermediary step between http request and another function (action)
 ta funkcja musi akceptować argumenty (conn, params)
 
+(przykłady z sekcji life-cycle się powtarzają)
+
+
+# Function components and HEEx
+
+bardzo prosty komponent i uzycie
+
+`shop_web/controllers/product_html.ex`
+```elixir
+defmodule ShopWeb.ProductHTML do
+  use ShopWeb, :html
+
+  embed_templates "product_html/*"
+
+  attr :name, :string, required: true
+
+  def product(assigns) do
+    ~H"""
+    <p>Game: {@name}</p>
+    """
+  end
+end
+```
+
+
+`shop_web/controllers/product_html/show.html.heex`
+```heex
+<.product name={@product.name} />
+```
+
+
+
 
