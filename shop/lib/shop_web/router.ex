@@ -17,6 +17,10 @@ defmodule ShopWeb.Router do
     plug :accepts, ["json"]
   end
 
+  pipeline :auth do
+    plug Plugs.EnsureAuthenticated
+  end
+
   scope "/", ShopWeb do
     pipe_through :browser
 
@@ -29,6 +33,11 @@ defmodule ShopWeb.Router do
   # scope "/api", ShopWeb do
   #   pipe_through :api
   # end
+
+  scope "/dashboard", ShopWeb do
+    pipe_through [:browser, :auth]
+    get "/", DashboardController, :index
+  end
 
   # Enable LiveDashboard and Swoosh mailbox preview in development
   if Application.compile_env(:shop, :dev_routes) do

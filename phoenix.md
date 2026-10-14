@@ -190,4 +190,68 @@ accessing full url with url function
 <p>This is the full URL: {url(~p"/products")}</p>
 ```
 
+# Routing
 
+
+resources generates all the crud operations and wires controller to the action, no need for action names :action
+
+`lib/shop_web/router.ex`
+```elixir
+  scope "/", ShopWeb do
+    pipe_through :browser
+
+    get "/", PageController, :home
+    # get "/products", ProductController, :index
+    # get "/products/:id", ProductController, :show
+
+    resources "/products", ProductController
+  end
+```
+
+można wybierać akcje
+```elixir
+  resources "/products", ProductController, only: [:index, :show]
+```
+lub
+```elixir
+  resources "/products", ProductController, except: [:delete]
+```
+
+# Nested routes
+```elixir
+    resources "/users", UserController do
+      get "/posts", PostsController, :index
+    end
+```
+
+# Scoped routes
+```elixir
+  scope "/api", ShopWeb do
+    pipe_through :api
+
+    get "/", PageController, :home
+    get "/products", ProductController, :index
+    get "/products/:id", ProductController, :show
+  end
+```
+daje
+```bash
+  GET   /api                                   ShopWeb.PageController :home
+  GET   /api/products                          ShopWeb.ProductController :index
+  GET   /api/products/:id                      ShopWeb.ProductController :show
+```
+
+# Pipeline
+Collection of plugs that runs in order
+```elixir
+  pipeline :auth do
+    plug Plugs.EnsureAuthenticated
+  end
+```
+
+można kilka pipe'ów po sobie odpalać, tutaj browser -> auth
+```elixir
+  scope "/dashboard", ShopWeb do
+    pipe_through [:browser, :auth]
+    get "/", DashboardController, :index
+```
