@@ -173,5 +173,21 @@ defmodule ShopWeb.Plugs.SetConsole do
 end
 ```
 
+# Verified routes
+
+verified routes z ~p sigil pokazuje error jeśli nie route nie istnieje
+```elixir
+<a href={~p"/pproducts"}>See all products</a>
+```
+
+można dodawać query parametry używając p sigil
+```elixir
+<a href={~p"/?#{[console: "xbox", admin: true]}"}>Go back to home page</a>
+```
+
+accessing full url with url function
+```elixir
+<p>This is the full URL: {url(~p"/products")}</p>
+```
 
 

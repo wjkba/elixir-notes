@@ -1,2 +1,6 @@
 <h1>HEEx is working</h1>
 <p :if={@promo}>You have a promotional code</p>
+
+<a href={~p"/?#{[console: "xbox", admin: true]}"}>Go back to home page</a>
+
+<p>This is the full URL: {url(~p"/products")}</p>

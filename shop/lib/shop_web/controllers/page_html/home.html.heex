@@ -1,6 +1,8 @@
 <Layouts.flash_group flash={@flash} />
 <h1>Welcome to the shop</h1>
 
+<a href={~p"/products"}>See all products</a>
+
 <hr class="my-10" />
 <form>
   <select name="console" id="console">
@@ -12,4 +14,5 @@
   <button type="submit">Save</button>
 </form>
 
+<p :if={@promo}>You have a promotional code</p>
 <p class="mt-8">Selected console: {@console}</p>
