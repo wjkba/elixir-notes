@@ -59,3 +59,119 @@ end
 i stworzyc 'lib/shop_web/controllers/product_html/index.html.heex'
 
 
+# Plug
+specification for composable modules in web applications
+it's pretty much a middleware
+
+grabs connection -> do whatever you want -> pass to another plug
+
+
+
+function plug accepts two parameters - conn and opts
+do whaterver you want as long as you return conn at the end
+
+```elixir
+def check_promo_code(%Plug.Conn{} = conn, _opts) do
+  # stuff
+  conn
+end
+```
+
+
+
+assign assigns value to a variable that is bound to connection and can be accessed from any page
+
+```elixir
+def check_promo_code(%Plug.Conn{} = conn, _opts) do
+    IO.inspect(conn.params)
+
+    promo_code = conn.params["promo"]
+
+    if promo_code == "secret-code" do
+      IO.inspect("Promo is true")
+      assign(conn, :promo, true)
+    else
+      assign(conn, :promo, false)
+    end
+  end
+```
+
+same logic as above but elixir way
+
+```elixir
+  def check_promo_code(%Plug.Conn{:params => %{"promo" => "secret-code"}} = conn, _opts) do
+    assign(conn, :promo, true)
+  end
+
+  def check_promo_code(%Plug.Conn{} = conn, _opts) do
+    assign(conn, :promo, false)
+  end
+```
+
+
+```elixir
+<h1>HEEx is working</h1>
+<p :if={@promo}>You have a promotional code</p>
+```
+
+# Module plug
+przkyładowy plug
+`lib/shop_web/plugs/set_console.ex`
+```elixir
+defmodule ShopWeb.Plugs.SetConsole do
+  def init(opts), do: opts
+
+  def call(%Plug.Conn{} = conn, opts) do
+    IO.inspect("Module plug is working")
+    IO.inspect("OPTS: " <> opts)
+    conn
+  end
+end
+```
+
+`lib/shop_web/router.ex`
+```elixir
+  alias ShopWeb.Plugs
+
+  pipeline :browser do
+    plug :accepts, ["html"]
+    plug :fetch_session
+    plug :fetch_live_flash
+    plug :put_root_layout, html: {ShopWeb.Layouts, :root}
+    plug :protect_from_forgery
+    plug :put_secure_browser_headers
+    plug Plugs.SetConsole, "pc"
+  end
+```
+
+działający plug z elixir magic pattern matching i guards
+```elixir
+defmodule ShopWeb.Plugs.SetConsole do
+  import Plug.Conn
+
+  @valid_consoles ["pc, xbox, playstation, nintendo"]
+
+  def init(opts), do: opts
+
+  def call(%Plug.Conn{:params => %{"console" => console}} = conn, _opts)
+      when console in @valid_consoles do
+    conn
+    |> assign(:console, console)
+    |> put_resp_cookie("console", console, max_age: 60 * 60 * 24 * 30)
+  end
+
+  def call(%Plug.Conn{:cookies => %{"console" => console}} = conn, _opts)
+      when console in @valid_consoles do
+    conn
+    |> assign(:console, console)
+  end
+
+  def call(%Plug.Conn{} = conn, default_console) do
+    conn
+    |> assign(:console, default_console)
+  end
+end
+```
+
+
+
