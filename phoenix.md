@@ -300,11 +300,17 @@ core component from another module
 </ShopWeb.CoreComponents.button>
 ```
 
-core componenty można używac skrótowo:
+core componenty można używac skrótowo, to dlatego, ze używamy `use ShopWeb` makro:
 ```elixir
 <.button>
   Click me!
 </.button>
+```
+
+# Ecto schemas and migrations
+
+```bash
+mix phx.gen.schema Product products name slug:unique console:enum:pc:xbox:nintendo:playstation
 ```
 
 
