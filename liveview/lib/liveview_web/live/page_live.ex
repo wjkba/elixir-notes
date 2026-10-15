@@ -2,20 +2,23 @@ defmodule LiveviewWeb.PageLive do
   use LiveviewWeb, :live_view
 
   def mount(_params, _session, socket) do
-    socket = assign(socket, name: "Lubien")
+    socket =
+      stream(socket, :foods, [
+        %{id: 1, name: "apple"},
+        %{id: 2, name: "banana"},
+        %{id: 3, name: "carrot"}
+      ])
+
     {:ok, socket}
   end
 
   def render(assigns) do
     ~H"""
-    Hello {@name}
-
-    <input type="button" value="Reverse" phx-click="reverse" />
+    <ul id="food-stream" phx-update="stream">
+      <li :for={{dom_id, food} <- @streams.foods} id={dom_id}>
+        {food.name}
+      </li>
+    </ul>
     """
-  end
-
-  def handle_event("reverse", _params, socket) do
-    socket = assign(socket, name: String.reverse(socket.assigns.name))
-    {:noreply, socket}
   end
 end

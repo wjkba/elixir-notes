@@ -1,6 +1,7 @@
 Adopt LiveView by Lubien
 
-# First Live View
+# Fundamentals
+## First Live View
 
 `lib/myapp_web/router.ex`
 ```elixir
@@ -11,14 +12,14 @@ scope "/", MyappWeb do
 end
 ```
 
-# Anatomy of a LiveView
+## Anatomy of a LiveView
 - Mix is the Elixir project compilation tool.
 - 'mix setup' is useful to get started on projects you just cloned.
 - All LiveViews have a 'render/1' function and always receive an argument called 'assigns'.
 - 'use MyappWeb', :live_view adds things at compile time to make your LiveView work properly.
 
 
-# LiveView assignments
+## LiveView assignments
 The way in which the LiveView framework sends information so that programmers can process the data is through callbacks. These are nothing more than functions that run when something happens. The mount/3 callback runs when your LiveView is initialized.
 ```elixir
 defmodule LiveviewWeb.PageLive do
@@ -43,7 +44,7 @@ end
 - The `render/1` function has a shortcut for writing assigns using `@name` instead of `assigns.name`.
 
 
-# Modifying state with events
+## Modifying state with events
 
 For each event in your HTML code, you need a corresponding `def handle_event("your_event", _params, socket)`
 
@@ -78,9 +79,233 @@ end
 - If you have the callback but do not handle the received case, you will see a `FunctionClauseError`.
 
 
+# HEEx
+
+## HEEx Basics
+when using <% %> tag, do note that there is no = after the first %. In HEEx this means "execute this code but do not render the result". As it uses the IO.puts/2 function, you can see the result in your terminal.
+
+```elixir
+  def render(assigns) do
+    ~H"""
+    <h2>Hello {"Lubien"}</h2>
+    <h2>Hello {1 + 1}</h2>
+    <h2>Hello {"Chris" <> " " <> "McCord"}</h2>
+    <h2>Hello <% "King Crimson" |> IO.puts() %></h2>
+    """
+  end
+```
+
+- nil renders nothing
+
+```elixir
+ def render(assigns) do
+    bg_for_hello_phoenix = "bg-black"
+    multiple_attributes = %{style: "color: yellow", class: "bg-black"}
+
+    ~H"""
+    <style>
+      .color-red { color: red }
+      .bg-black { background-color: black }
+      .bg-red { background-color: red }
+    </style>
+
+    <h2 style="color: red" class="bg-black">Hello World</h2>
+    <h2 style="color: white" class={"bg-" <> "red"}>Hello Elixir</h2>
+    <h2 class={[bg_for_hello_phoenix, nil, "color-red"]}>Hello Phoenix</h2>
+    <h2 {multiple_attributes}>Hello LiveView</h2>
+    """
+  end
+```
+In the third example (Hello Phoenix) there is a golden tip: you can pass a list with multiple strings to an attribute and at the end it will be automatically joined and values that are nil will be ignored. The reason this technique is powerful is that it makes it easier to work with variables, as we can see bg_for_hello_phoenix being used.
+
+The last case (Hello LiveView) adds one more way of working with attributes. If you ever need to add attributes dynamically, that is, you don't know exactly which attributes will or won't be included in advance, you can use the syntax of adding an elixir map within the opening HTML tag and HEEx will understand that each key in your map represents an attribute.
+
+## Conditional rendering
+
+```elixir
+defmodule LiveviewWeb.PageLive do
+  use LiveviewWeb, :live_view
+
+  def mount(_params, _session, socket) do
+    socket = assign(socket, show_information?: false)
+    {:ok, socket}
+  end
+
+  def render(assigns) do
+    ~H"""
+    <div>
+      <%= if @show_information? do %>
+        <p>You're an amazing person!</p>
+      <% else %>
+        <p>You can't see this message!</p>
+      <% end %>
+    </div>
+
+    <input type="button" value="Toggle" phx-click="toggle" />
+    """
+  end
+
+  def handle_event("toggle", _params, socket) do
+    socket = assign(socket, show_information?: !socket.assigns.show_information?)
+    {:noreply, socket}
+  end
+end
+```
+
+Inside a LiveView, you can do an `if-else` as follows:
+
+- Add a `<%= if condition do %>`. It is important that you use the tag that contains `=`; otherwise, HEEx will understand that this should not be rendered.
+- Write any HTML that will be in the case that should be rendered.
+- Add an `<% else %>`. Note that there is no `=` this time. If you add it, the code continues to work, but a warning will ask you to remove it.
+- Write any HTML for the `else` case.
+- Add a `<% end %>`. Again, without `=`.
 
 
+For cases where you only have `if`, HEEx has a special attribute called `:if`
+```elixir
+  def render(assigns) do
+    ~H"""
+    <div>
+      <p :if={@show_information?}>You're an amazing person!</p>
+    </div>
+
+    <input type="button" value="Toggle" phx-click="toggle" />
+    """
+  end
+```
+At the moment there is no special attribute for else so if you only need if it is recommended to use :if when you can put it in a parent tag of the things that enter the condition, otherwise use the first example with if-else as shown above.
 
 
+```elixir
+def mount(_params, _session, socket) do
+    socket = assign(socket, show_information?: false)
+    {:ok, socket}
+  end
+
+  def render(assigns) do
+    ~H"""
+    <div>
+      <p :if={@show_information?}>You're an amazing person!</p>
+    </div>
+
+    <input type="button" value="Toggle" phx-click="toggle" />
+    """
+  end
+
+  def handle_event("toggle", _params, socket) do
+    socket = assign(socket, show_information?: !socket.assigns.show_information?)
+    {:noreply, socket}
+  end
+```
 
 
+cond do:
+```elixir
+  def mount(_params, _session, socket) do
+    socket = assign(socket, temperature_celsius: 30)
+    {:ok, socket}
+  end
+
+  def render(assigns) do
+    ~H"""
+    <div>
+      Current temperature: {@temperature_celsius}C
+    </div>
+    <div>
+      <%= cond do %>
+        <% @temperature_celsius > 40 -> %>
+          <p>🔥 Impossible to live 🔥</p>
+        <% @temperature_celsius > 30 -> %>
+          <p>Its hot</p>
+        <% @temperature_celsius > 20 -> %>
+          <p>Kinda cool</p>
+        <% @temperature_celsius > 10 -> %>
+          <p>Chill</p>
+        <% @temperature_celsius > 0 -> %>
+          <p>Chill</p>
+        <% true -> %>
+          <p>❄️⛄️</p>
+      <% end %>
+    </div>
+
+    <input type="button" value="Increase" phx-click="increase" />
+    <input type="button" value="Decrease" phx-click="decrease" />
+    """
+  end
+
+  def handle_event("increase", _params, socket) do
+    socket = assign(socket, temperature_celsius: socket.assigns.temperature_celsius + 10)
+    {:noreply, socket}
+  end
+
+  def handle_event("decrease", _params, socket) do
+    socket = assign(socket, temperature_celsius: socket.assigns.temperature_celsius - 10)
+    {:noreply, socket}
+  end
+```
+
+- For `if` without `else`, you can use the `<%= if condition do %>` block format or the special HEEx attribute `:if={condition}` in an HTML tag.
+- For multiple comparisons of a value, you can use `<%= case value do %>`.
+- For multiple conditions that don't just involve comparing whether a value matches something, you can use `<%= cond do %>`.
+- In all cases, the first tag will always need `=`, and the others won't. If you add `=` to the other tags, LiveView will generate warnings, but everything will work normally.
+- If in the first tag you do not add `=`, the HTML code will not be rendered.
+
+## List rendering
+
+The official recommendation from the Phoenix team is that you avoid doing any type of calculation within your render/1 as much as possible. Process your code before assigning them to your socket.
+```elixir
+  def mount(_params, _session, socket) do
+    foods = Enum.filter(["apple", "banana", "carrot"], fn food -> food != "banana" end)
+    socket = assign(socket, foods: foods)
+    {:ok, socket}
+  end
+
+  def render(assigns) do
+    ~H"""
+    <ul>
+      <%= for food <- @foods do %>
+        <li>{food}</li>
+      <% end %>
+    </ul>
+    """
+  end
+```
+
+ Just as the if block has the :if version, the for comprehension has its special HEEx attribute :for. 
+```elixir
+  def mount(_params, _session, socket) do
+    foods = Enum.filter(["apple", "banana", "carrot"], fn food -> food != "banana" end)
+    socket = assign(socket, foods: foods)
+    {:ok, socket}
+  end
+
+  def render(assigns) do
+    ~H"""
+    <ul>
+      <%= for food <- @foods do %>
+        <li>{food}</li>
+      <% end %>
+    </ul>
+    """
+  end
+```
+
+How can we have list rendering that doesn't consume memory forever and that doesn't re-render when assigns change?
+
+```elixir
+  def mount(_params, _session, socket) do
+    socket = assign(socket, foods: ["apple", "banana", "carrot"])
+    {:ok, socket}
+  end
+
+  def render(assigns) do
+    ~H"""
+    <ul>
+      <li :for={food <- @foods}>{food}</li>
+    </ul>
+    """
+  end
+```
+- We must add a special `phx-update="stream"` attribute to define that the children of this element are part of a stream.
+- Inside our `ul`, we kept the special `:for` comprehension, but this time we read the special assign `@streams.foods`.
+- Every time a stream is created with `:some_name`, a special assign `@streams.some_name` is generated.
