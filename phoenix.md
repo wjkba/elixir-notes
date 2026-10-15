@@ -290,6 +290,22 @@ end
 <.product name={@product.name} />
 ```
 
+# Core components
+w poprzednim przykładzie mogłem użyć komponentu przez `<.product/>`, to dlatego, ze produkt komponent jest w tym samym module co templates
+
+core component from another module
+```elixir
+<ShopWeb.CoreComponents.button>
+  Click me!
+</ShopWeb.CoreComponents.button>
+```
+
+core componenty można używac skrótowo:
+```elixir
+<.button>
+  Click me!
+</.button>
+```
 
 
 
