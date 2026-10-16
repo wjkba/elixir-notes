@@ -309,3 +309,178 @@ How can we have list rendering that doesn't consume memory forever and that does
 - We must add a special `phx-update="stream"` attribute to define that the children of this element are part of a stream.
 - Inside our `ul`, we kept the special `:for` comprehension, but this time we read the special assign `@streams.foods`.
 - Every time a stream is created with `:some_name`, a special assign `@streams.some_name` is generated.
+
+# Events
+## phx-value
+```elixir
+  def mount(_params, _session, socket) do
+    socket = assign(socket, temperature_celsius: 30)
+    {:ok, socket}
+  end
+
+  def render(assigns) do
+    ~H"""
+    <div>
+      Current temperature: {@temperature_celsius}C
+    </div>
+    <div>
+      <%= cond do %>
+        <% @temperature_celsius > 40 -> %>
+          <p>🔥 Impossible to live 🔥</p>
+        <% @temperature_celsius > 30 -> %>
+          <p>Its hot</p>
+        <% @temperature_celsius > 20 -> %>
+          <p>Kinda cool</p>
+        <% @temperature_celsius > 10 -> %>
+          <p>Chill</p>
+        <% @temperature_celsius > 0 -> %>
+          <p>Chill</p>
+        <% true -> %>
+          <p>❄️⛄️</p>
+      <% end %>
+    </div>
+
+    <input type="button" value="+5" phx-click="add" phx-value-amount={+5} />
+    <input type="button" value="+10" phx-click="add" phx-value-amount={+10} />
+    <input type="button" value="-5" phx-click="add" phx-value-amount={-5} />
+    <input type="button" value="-10" phx-click="add" phx-value-amount={-10} />
+    """
+  end
+
+  def handle_event("add", %{"amount" => amount}, socket) do
+    amount = String.to_integer(amount)
+    socket = assign(socket, temperature_celsius: socket.assigns.temperature_celsius + amount)
+    {:noreply, socket}
+  end
+```
+
+We replaced the `"increase"` and `"decrease"` events with a generic event called `"add"` that receives a `phx-value-amount`, which is a number. The `handle_event/3` callback receives `%{"amount" => "+10"}` as its second parameter, depending on the button clicked. Parameters coming from HTML always come in string format because HTML attributes are strings, so we must convert the number before performing the sum.
+- The `phx-value-*` binding can help generalize an event so that it is reusable.
+- The data you receive in `handle_event/3` corresponds to the HEEx binding name: `phx-value-test` generates `%{"test" => value}`.
+- Values coming from a `phx-value-*` binding are always strings.
+
+## JS.push
+The example above can be simplified by using `JS.push/2` directly in the `pxh-click` binding
+
+```elixir
+  def render
+  (...)
+    <input type="button" value="+5" phx-click={JS.push("add", value: %{amount: +5})} />
+    <input type="button" value="+10" phx-click={JS.push("add", value: %{amount: +10})} />
+    <input type="button" value="-5" phx-click={JS.push("add", value: %{amount: -5})} />
+    <input type="button" value="-10" phx-click={JS.push("add", value: %{amount: -10})} />
+  end
+
+  def handle_event("add", %{"amount" => amount}, socket) do
+    socket = assign(socket, temperature_celsius: socket.assigns.temperature_celsius + amount)
+    {:noreply, socket}
+  end
+```
+
+Code duplication could be avoided by using simple `:for`
+```elixir
+    <input
+      :for={value <- [5, 10, -5, -10]}
+      type="button"
+      value={"Add #{value}"}
+      phx-click={JS.push("add", value: %{amount: value})}
+    />
+```
+
+## More than one event triggered
+
+```elixir
+ def mount(_params, _session, socket) do
+    socket = assign(socket, red: 0, blue: 0)
+    {:ok, socket}
+  end
+
+  def render(assigns) do
+    ~H"""
+    <dl>
+      <dt>Red Points</dt>
+      <dd>{@red}</dd>
+
+      <dt>Blue Points</dt>
+      <dd>{@blue}</dd>
+    </dl>
+
+    <input
+      type="button"
+      value="Red Wins"
+      phx-click={JS.push("add_points", value: %{team: :red, amount: +3})}
+    />
+    <input
+      type="button"
+      value="Blue Wins"
+      phx-click={JS.push("add_points", value: %{team: :blue, amount: +3})}
+    /> ?????????
+    <input
+      type="button"
+      value="Draw"
+      phx-click={
+        JS.push("add_points", value: %{team: :blue, amount: +1})
+        |> JS.push("add_points", value: %{team: :red, amount: +1})
+      }
+    />
+    """
+  end
+
+  def handle_event("add_points", %{"team" => team, "amount" => amount}, socket) do
+    team_atom = String.to_existing_atom(team)
+    current_points = socket.assigns[team_atom]
+    socket = assign(socket, team_atom, current_points + amount)
+    {:noreply, socket}
+  end
+```
+
+Custom JS Commands and module functions 
+```elixir
+ def mount(_params, _session, socket) do
+    socket = assign(socket, red: 0, blue: 0)
+    {:ok, socket}
+  end
+
+  def render(assigns) do
+    ~H"""
+    <dl>
+      <dt>Red Points</dt>
+      <dd>{@red}</dd>
+
+      <dt>Blue Points</dt>
+      <dd>{@blue}</dd>
+    </dl>
+
+    <input
+      type="button"
+      value="Red Wins"
+      phx-click={add_points(:red, 3)}
+    />
+    <input
+      type="button"
+      value="Blue Wins"
+      phx-click={add_points(:blue, 3)}
+    />
+    <input
+      type="button"
+      value="Draw"
+      phx-click={add_points(:red, 1) |> add_points(:blue, 1)}
+    />
+    """
+  end
+
+  defp add_points(js \\ %JS{}, team, amount) do
+    JS.push(js, "add_points", value: %{team: team, amount: amount})
+  end
+
+  def handle_event("add_points", %{"team" => team, "amount" => amount}, socket) do
+    team_atom = String.to_existing_atom(team)
+    current_points = socket.assigns[team_atom]
+    socket = assign(socket, team_atom, current_points + amount)
+    {:noreply, socket}
+  end
+```
+
+- JS Commands can be chained.
+- Using JS Commands, you can trigger more than one event in the same `phx-click` binding.
+- Creating custom JS Command functions requires explicitly receiving an optional argument `js \\ %JS{}` and using `js` within the function.
