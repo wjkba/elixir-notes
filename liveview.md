@@ -838,3 +838,258 @@ if slots are lists we can do loops and if each slot is a map, we can get propert
 - You can simplify loops by creating components.
 - Slots can receive loop variables by passing them as the second argument of `render_slot/2` and receiving them in the slot using `:let={var_name}`.
 - Using slots and components makes LiveView code cleaner.
+
+
+# Forms
+
+## The simplest form of all
+
+```elixir
+  def handle_event("create_product", %{"product" => product_params}, socket) do
+    IO.inspect({"Form submitted!!", product_params})
+    {:noreply, socket}
+  end
+
+  def render(assigns) do
+    ~H"""
+    <div>
+      <form phx-submit="create_product" class="flex flex-col max-w-96 mx-auto p-24">
+        <h1 class="text-blue-500">Creating a product</h1>
+        <input type="text" name="product[name]" placeholder="Name" />
+        <input type="text" name="product[description]" placeholder="Description" />
+        <button type="submit">Send</button>
+      </form>
+    </div>
+    """
+  end
+```
+
+When we have a HTML form with inputs product[name] and product[description] this generates an equivalent map in the format %{"product" => %{"name" => "", "description" => ""}}. This makes it easier for us to retrieve this value in our handle_event/3.
+
+
+.form way:
+```elixir
+  @initial_state %{
+    "name" => "",
+    "description" => ""
+  }
+
+  def mount(_params, _session, socket) do
+    form = to_form(@initial_state, as: :product)
+    {:ok, assign(socket, form: form)}
+  end
+
+  def handle_event("create_product", %{"product" => product_params}, socket) do
+    IO.inspect({"Form submitted!!", product_params})
+    {:noreply, socket}
+  end
+
+  def render(assigns) do
+    ~H"""
+    <div>
+      <.form
+        for={@form}
+        phx-submit="create_product"
+        class="flex flex-col max-w-96 mx-auto p-24"
+      >
+        <h1>Creating a product</h1>
+        <input type="text" id={@form[:name].id} name={@form[:name].name} placeholder="Name" />
+
+        <input
+          type="text"
+          id={@form[:description].id}
+          name={@form[:description].name}
+          placeholder="Description"
+        />
+
+        <button type="submit">Send</button>
+      </.form>
+    </div>
+    """
+  end
+```
+
+- In the HEEx code, the first difference is that we replaced the HTML tag `<form>` with the component `<.form>`, passing the assign `for={@form}`. That's all this component needs!
+- Further below, we modified our `input` tags to receive form fields in the format `@form[:name]`. Each of these represents a `Phoenix.HTML.FormField`, and we use the field's `id` and `name` properties in the attributes with the same names.
+- You might be thinking, "My code has become more verbose. What's the advantage?" The motivation is simpler than it seems: we can componentize our `input` tags!
+
+```elixir
+  attr :field, Phoenix.HTML.FormField, required: true
+  attr :type, :string, default: "text"
+  attr :rest, :global, include: ~w(placeholder type)
+
+  def my_input(assigns) do
+    ~H"""
+    <input type={@type} id={@field.id} name={@field.name} {@rest} />
+    """
+  end
+```
+
+
+```elixir
+  def render(assigns) do
+    ~H"""
+    <div>
+      <.form
+        for={@form}
+        phx-submit="create_product"
+        class="flex flex-col max-w-96 mx-auto p-24"
+      >
+        <h1 class="text-blue-500">Creating a product</h1>
+        <.my_input field={@form[:name]} placeholder="Name" />
+        <.my_input field={@form[:description]} placeholder="Description" />
+
+        <button type="submit">Send</button>
+      </.form>
+    </div>
+    """
+  end
+```
+
+- LiveView forms use the `phx-submit` binding to trigger a `handle_event/3` callback with the respective event name.
+- Phoenix prefers the format `parent_name[child_name]` for input names to make it easier to manage which form contains which data. This generates maps like `%{"parent_name" => %{"child_name" => ""}}` in `phx-submit` events.
+- The preferred approach for creating forms is to use the `<.form>` component instead of the `<form>` tag.
+- To prepare data in the `Phoenix.HTML.Form` format, the `to_form/2` function converts data, such as `to_form(%{name: ""}, as: :product)`, into the appropriate format.
+- We prefer to add `as: :name_of_parent` as an option to `to_form/2` to follow the Phoenix convention for the `name` attributes of our `input` tags.
+- Using forms in the `Phoenix.HTML.Form` format makes it easier to create components for inputs.
+
+## Validations
+Just like `phx-submit`, the `phx-change` binding works on forms but it is triggered every time any data in a form is modified
+
+```elixir
+  def my_input(assigns) do
+    ~H"""
+    <input type="text" id={@field.id} name={@field.name} value={@field.value} {@rest} />
+    <div :for={msg <- @field.errors} class="text-red-500 py-2">{msg}</div>
+    """
+  end
+```
+
+
+```elixir
+defmodule LiveviewWeb.PageLive do
+  use LiveviewWeb, :live_view
+
+  @initial_state %{
+    "name" => "",
+    "description" => ""
+  }
+
+  def mount(_params, _session, socket) do
+    form = to_form(@initial_state, as: :product)
+    {:ok, assign(socket, form: form)}
+  end
+
+  def handle_event("validate_product", %{"product" => product_params}, socket) do
+    errors = []
+
+    errors =
+      if product_params["name"] == "" do
+        Keyword.put(errors, :name, "can't be blank")
+      else
+        errors
+      end
+
+    errors =
+      if product_params["description"] == "" do
+        Keyword.put(errors, :description, "can't be blank")
+      else
+        errors
+      end
+
+    form = to_form(product_params, as: :product, errors: errors)
+    {:noreply, assign(socket, form: form)}
+  end
+
+  def handle_event("create_product", %{"product" => product_params}, socket) do
+    IO.inspect({"Form submitted!!", product_params})
+    {:noreply, socket}
+  end
+
+  def render(assigns) do
+    ~H"""
+    <div class="bg-grey-100">
+      <.form
+        for={@form}
+        phx-change="validate_product"
+        phx-submit="create_product"
+        class="flex flex-col max-w-96 mx-auto p-24"
+      >
+        <h1 class="text-blue-500">Creating a product</h1>
+        <.my_input field={@form[:name]} placeholder="Name" />
+        <.my_input field={@form[:description]} placeholder="Description" />
+
+        <button type="submit">Send</button>
+      </.form>
+    </div>
+    """
+  end
+end
+
+```
+
+- `phx-change` is a binding that runs every time the form changes. It triggers a `handle_event/3` callback similar to that of `phx-submit`.
+- You can use `to_form/3` to add validation errors to your form by passing them in the options.
+- It is the responsibility of the `<.input>` component to render errors and display the current value of the form field if it is modified on the server.
+- Fortunately, you don't need to create the `<.input>` component — `CoreComponents` is already generated for you and available in every LiveView via `use MyappWeb, :live_view`.
+
+## Simplifying everything with Ecto 
+```elixir
+defmodule Liveview.Products.Product do
+  use Ecto.Schema
+  import Ecto.Changeset
+
+  embedded_schema do
+    field :name, :string, default: ""
+    field :description, :string, default: ""
+  end
+
+  def changeset(product, params \\ %{}) do
+    product
+    |> cast(params, [:name, :description])
+    |> validate_required([:name, :description])
+  end
+end
+```
+
+1. What embedded schema essentially does is say that a Struct Product starts as %Product{name: "", description: ""} with its DSL.
+
+2. An `Ecto.Schema` with at least one `changeset/2` function is a given. These functions define how data is validated. Instead of handling validation in LiveView, which makes code messy and difficult to reuse, Phoenix projects typically validate data in `changeset/2` functions within an `Ecto.Schema`.
+  We receive two arguments: the product and optional parameters (defaulting to `%{}`). We then use pipes to transform the data as follows:
+  - We start with a `%Product{name: "", description: ""}` struct, since our form begins with an empty `%Product{}`.
+  - Using [`cast/4`](https://hexdocs.pm/ecto/Ecto.Changeset.html?utm_source=chatgpt.com#cast/4), we transform the `%Product{}` into an `%Ecto.Changeset{}`, accepting only the `:name` and `:description` parameters.
+  - Using [`validate_required/3`](https://hexdocs.pm/ecto/Ecto.Changeset.html?utm_source=chatgpt.com#validate_required/3), we validate that both `:name` and `:description` are present.
+
+
+
+Using changesets in LiveView:
+```elixir
+defmodule MyappWeb.PageLive do
+  # ...
+
+  def mount(_params, _session, socket) do
+    form =
+      Product.changeset(%Product{})
+      |> to_form()
+
+    {:ok, assign(socket, form: form)}
+  end
+
+  def handle_event("validate_product", %{"product" => product_params}, socket) do
+    form =
+      Product.changeset(%Product{}, product_params)
+      |> Map.put(:action, :validate)
+      |> to_form()
+
+    {:noreply, assign(socket, form: form)}
+  end
+
+  # ...
+end
+```
+
+- We can use `Ecto.Schema` to easily create a `Struct`. Since we are not working with a database yet, we use `embedded_schema` and `fields` to store data only in memory.
+- We can use `Ecto.Changeset` to validate user data before it enters our struct.
+- Usually, an `Ecto.Schema` has one or more `changeset/2` functions to define how its data is validated, called as `Product.changeset(%Product{}, params)`.
+- Our LiveViews become cleaner when we separate validation logic from UI logic.
+

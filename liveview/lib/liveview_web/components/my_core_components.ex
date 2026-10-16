@@ -74,7 +74,8 @@ defmodule LiveviewWeb.MyCoreComponents do
 
   def my_input(assigns) do
     ~H"""
-    <input type={@type} id={@field.id} name={@field.name} {@rest} />
+    <input type="text" id={@field.id} name={@field.name} value={@field.value} {@rest} />
+    <div :for={msg <- @field.errors} class="text-red-500 py-2">{msg}</div>
     """
   end
 end

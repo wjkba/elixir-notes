@@ -1,14 +1,22 @@
 defmodule LiveviewWeb.PageLive do
   use LiveviewWeb, :live_view
-
-  @initial_state %{
-    "name" => "",
-    "description" => ""
-  }
+  alias Liveview.Products.Product
 
   def mount(_params, _session, socket) do
-    form = to_form(@initial_state, as: :product)
+    form =
+      Product.changeset(%Product{})
+      |> to_form()
+
     {:ok, assign(socket, form: form)}
+  end
+
+  def handle_event("validate_product", %{"product" => product_params}, socket) do
+    form =
+      Product.changeset(%Product{}, product_params)
+      |> Map.put(:action, :validate)
+      |> to_form()
+
+    {:noreply, assign(socket, form: form)}
   end
 
   def handle_event("create_product", %{"product" => product_params}, socket) do
@@ -21,14 +29,15 @@ defmodule LiveviewWeb.PageLive do
     <div>
       <.form
         for={@form}
+        phx-change="validate_product"
         phx-submit="create_product"
         class="flex flex-col max-w-96 mx-auto p-24"
       >
-        <h1 class="text-blue-500">Creating a product</h1>
-        <.my_input field={@form[:name]} placeholder="Name" />
-        <.my_input field={@form[:description]} placeholder="Description" />
+        <h1>Creating a product</h1>
+        <.input field={@form[:name]} placeholder="Name" />
+        <.input field={@form[:description]} placeholder="Description" />
 
-        <button type="submit">Send</button>
+        <.button type="submit">Send</.button>
       </.form>
     </div>
     """
