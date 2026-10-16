@@ -484,3 +484,124 @@ Custom JS Commands and module functions
 - JS Commands can be chained.
 - Using JS Commands, you can trigger more than one event in the same `phx-click` binding.
 - Creating custom JS Command functions requires explicitly receiving an optional argument `js \\ %JS{}` and using `js` within the function.
+
+# Navigation
+
+## Your second LiveView
+- Every Phoenix application has a Router.
+- Routers use pipelines and `scope` blocks to define how certain routes behave.
+- In a Router, we can define LiveView routes using the `live/4` macro.
+- HTML tags with `.` at the beginning, such as `<.link>`, indicate that the tag is actually a component.
+- We must use the `<.link navigate={~p"/route"}>` component in our LiveViews to navigate efficiently between routes.
+- Using `sigil_p`, we can write routes so that Phoenix will warn us if they don't exist, allowing us to detect problems during development.
+
+## Route parameters
+
+```elixir
+ scope "/", LiveviewWeb do
+    pipe_through :browser
+
+    live "/", PageLive, :home
+    live "/other", OtherPageLive, :other
+    live "/blog/:slug", BlogLive, :index
+  end
+```
+
+```elixir
+defmodule LiveviewWeb.BlogLive do
+  use LiveviewWeb, :live_view
+
+  def mount(%{"slug" => slug}, _session, socket) do
+    socket = assign(socket, :slug, slug)
+    {:ok, socket}
+  end
+
+  def render(assigns) do
+    ~H"""
+    <h1>Reading about {@slug}</h1>
+    """
+  end
+end
+```
+
+- The `live/4` macro lets you create parameters in the URL using the `:variable_name` format.
+- Any parameter defined in the router becomes a key in the `params` map in your LiveView.
+
+
+## Generic parameters with query string 
+```elixir
+  def mount(params, _session, socket) do
+    admin? = params["admin_mode"] == "secret123"
+    socket = assign(socket, :admin?, admin?)
+    {:ok, socket}
+  end
+
+  def render(assigns) do
+    ~H"""
+    <h1>Welcome to my Website!</h1>
+    <.link :if={@admin?} navigate={~p"/admin"}>Go to admin panel</.link>
+    """
+  end
+```
+
+Saving the current tab in the url
+```elixir
+  def mount(params, _session, socket) do
+    tab = params["tab"] || "home"
+    socket = assign(socket, tab: tab)
+    {:ok, socket}
+  end
+
+  def render(assigns) do
+    ~H"""
+    <div>
+      <%= case @tab do %>
+        <% "home" -> %>
+          <p>You're on my personal page!</p>
+        <% "about" -> %>
+          <p>Hi, I'm a LiveView developer!</p>
+        <% "contact" -> %>
+          <p>Mail me to bot [at] company [dot] com</p>
+      <% end %>
+    </div>
+
+    <.link :if={@tab != "home"} navigate={~p"/tab/home"}>Go to home</.link>
+    <.link :if={@tab != "about"} navigate={~p"/tab/about"}>Go to about</.link>
+    <.link :if={@tab != "contact"} navigate={~p"/tab/contact"}>Go to contact</.link>
+    """
+  end
+```
+
+When you use <.link navigate={...}>, LiveView understands that you are changing from one LiveView to a different one and need to create a new context. If you know beforehand that a transition goes to the same LiveView, you can use the alternative <.link patch={...}> and the modification between routes will be even more optimized. For this to work correctly, we need to introduce a new callback called handle_params/3. 
+Whenever a LiveView is initialized by Phoenix for the first time, it executes mount/3 if it exists and then handle_params/3 if it exists. This way, we can remove mount/3 completely.
+```elixir
+  def handle_params(params, _uri, socket) do
+    tab = params["tab"] || "home"
+    socket = assign(socket, tab: tab)
+    {:noreply, socket}
+  end
+
+  def render(assigns) do
+    ~H"""
+    <div>
+      <%= case @tab do %>
+        <% "home" -> %>
+          <p>You're on my personal page!</p>
+        <% "about" -> %>
+          <p>Hi, I'm a LiveView developer!</p>
+        <% "contact" -> %>
+          <p>Mail me to bot [at] company [dot] com</p>
+      <% end %>
+    </div>
+
+    <.link :if={@tab != "home"} patch={~p"/"}>Go to home</.link>
+    <.link :if={@tab != "about"} patch={~p"/tab/about"}>Go to about</.link>
+    <.link :if={@tab != "contact"} patch={~p"/tab/contact"}>Go to contact</.link>
+    """
+  end
+```
+
+- We can take advantage of URLs to persist data in cases such as tabs.
+- `handle_params/3` is a callback that is executed right after `mount/3`.
+- One way to optimize page changes within the same LiveView is to use `patch` in the `<.link>` components.
+- Using `patch` executes `handle_params/3`.

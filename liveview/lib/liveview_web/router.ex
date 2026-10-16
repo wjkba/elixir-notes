@@ -17,7 +17,10 @@ defmodule LiveviewWeb.Router do
   scope "/", LiveviewWeb do
     pipe_through :browser
 
-    live "/", PageLive, :home
+    live "/", PageLive, :show
+    live "/tab/:tab", PageLive, :show
+    live "/other", OtherPageLive, :other
+    live "/blog/:slug", BlogLive, :index
   end
 
   # Other scopes may use custom stacks.

@@ -1,46 +1,28 @@
 defmodule LiveviewWeb.PageLive do
   use LiveviewWeb, :live_view
 
-  def mount(_params, _session, socket) do
-    socket = assign(socket, red: 0, blue: 0)
-    {:ok, socket}
+  def handle_params(params, _uri, socket) do
+    tab = params["tab"] || "home"
+    socket = assign(socket, tab: tab)
+    {:noreply, socket}
   end
 
   def render(assigns) do
     ~H"""
-    <dl>
-      <dt>Red Points</dt>
-      <dd>{@red}</dd>
+    <div>
+      <%= case @tab do %>
+        <% "home" -> %>
+          <p>You're on my personal page!</p>
+        <% "about" -> %>
+          <p>Hi, I'm a LiveView developer!</p>
+        <% "contact" -> %>
+          <p>Mail me to bot [at] company [dot] com</p>
+      <% end %>
+    </div>
 
-      <dt>Blue Points</dt>
-      <dd>{@blue}</dd>
-    </dl>
-
-    <input
-      type="button"
-      value="Red Wins"
-      phx-click={JS.push("add_points", value: %{team: :red, amount: +3})}
-    />
-    <input
-      type="button"
-      value="Blue Wins"
-      phx-click={JS.push("add_points", value: %{team: :blue, amount: +3})}
-    /> ?????????
-    <input
-      type="button"
-      value="Draw"
-      phx-click={
-        JS.push("add_points", value: %{team: :blue, amount: +1})
-        |> JS.push("add_points", value: %{team: :red, amount: +1})
-      }
-    />
+    <.link :if={@tab != "home"} patch={~p"/"}>Go to home</.link>
+    <.link :if={@tab != "about"} patch={~p"/tab/about"}>Go to about</.link>
+    <.link :if={@tab != "contact"} patch={~p"/tab/contact"}>Go to contact</.link>
     """
-  end
-
-  def handle_event("add_points", %{"team" => team, "amount" => amount}, socket) do
-    team_atom = String.to_existing_atom(team)
-    current_points = socket.assigns[team_atom]
-    socket = assign(socket, team_atom, current_points + amount)
-    {:noreply, socket}
   end
 end
