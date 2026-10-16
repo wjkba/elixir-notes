@@ -1,9 +1,13 @@
 defmodule LiveviewWeb.OtherPageLive do
   use LiveviewWeb, :live_view
+  import LiveviewWeb.MyCoreComponents
 
   def render(assigns) do
     ~H"""
-    <h1>OtherPageLive</h1>
+    <.hero>
+      <:title>OtherPageLive</:title>
+      <:subtitle>You're on the first step!</:subtitle>
+    </.hero>
     <.link navigate={~p"/"}>Go to home</.link>
     """
   end

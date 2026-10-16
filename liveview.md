@@ -605,3 +605,236 @@ Whenever a LiveView is initialized by Phoenix for the first time, it executes mo
 - `handle_params/3` is a callback that is executed right after `mount/3`.
 - One way to optimize page changes within the same LiveView is to use `patch` in the `<.link>` components.
 - Using `patch` executes `handle_params/3`.
+
+
+# Components
+## Functional components
+
+
+You can create components in your LiveViews by defining a function that receives assigns and returns HEEx.
+```elixir
+  def render(assigns) do
+    ~H"""
+    <.my_button>Default</.my_button>
+    <.my_button>Green</.my_button>
+    <.my_button>Red</.my_button>
+    <.my_button>Yellow</.my_button>
+    """
+  end
+
+  def my_button(assigns) do
+    ~H"""
+    <button
+      type="button"
+      class="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 me-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800"
+    >
+      {render_slot(@inner_block)}
+    </button>
+    """
+  end
+```
+- HTML components and tags are distinguished by the presence of a leading `.` in the component name to avoid conflicts.
+- In a component, you decide where to render the child nodes using `render_slot(@inner_block)`.
+- Your components can reuse code efficiently through attributes.
+
+
+## Validating components
+```elixir
+  @doc """
+  Renders a button
+
+  ## Examples
+
+      <.my_button>Save data</.my_button>
+      <.my_button color="red">Delete account</.my_button>
+  """
+  attr :color, :string, default: "blue"
+  slot :inner_block, required: true
+
+  def my_button(assigns) do
+    ~H"""
+    <button
+      type="button"
+      class={"text-white bg-#{@color}-700 hover:bg-#{@color}-800 focus:ring-4 focus:ring-#{@color}-300 font-medium rounded-lg text-sm px-5 py-2.5 me-2 mb-2 dark:bg-#{@color}-600 dark:hover:bg-#{@color}-700 focus:outline-none dark:focus:ring-#{@color}-800"}
+    >
+      {render_slot(@inner_block)}
+    </button>
+    """
+  end
+```
+If you are interested in only certain colors being accepted by your component, use `values` as follows: `attr :color, :string, default: "blue", values: ~w(blue red yellow green)`. If you want to provide examples without limiting the accepted values, simply change `values` to `examples`.
+[`sigil_w`](https://hexdocs.pm/elixir/1.16.2/Kernel.html?utm_source=chatgpt.com#sigil_w/2) provides a simplified way to create lists of strings. For example, `["blue", "green"]` can be written as `~w(blue green)`. With this sigil, you don't need commas or quotation marks; simply place the values inside the parentheses.
+
+
+
+To allow the component to receive additional classes, we need to define a new `attr`. Update `page_live.ex` to add a `class` attribute.
+```elixir
+  attr :color, :string, default: "blue", examples: ~w(blue red yellow green)
+  attr :class, :string, default: nil
+  slot :inner_block, required: true
+
+  def my_button(assigns) do
+    ~H"""
+    <button
+      type="button"
+      class={[
+        "text-white bg-#{@color}-700 hover:bg-#{@color}-800 focus:ring-4 focus:ring-#{@color}-300 font-medium rounded-lg text-sm px-5 py-2.5 me-2 mb-2 dark:bg-#{@color}-600 dark:hover:bg-#{@color}-700 focus:outline-none dark:focus:ring-#{@color}-800",
+        @class
+      ]}
+    >
+      {render_slot(@inner_block)}
+    </button>
+    """
+  end
+```
+
+As you can see, our button currently just works as type="button". If we want to be able to change the type to "submit" or "reset" we would have to create a new attr. This manual process of creating an attr gets repetitive very quickly. If you just want to pass through all other attributes coming from using the component, HEEx has a solution. Update page_live.ex to support global attributes
+```elixir
+  attr :color, :string, default: "blue", examples: ~w(blue red yellow green)
+  attr :class, :string, default: nil
+  attr :rest, :global, default: %{type: "button"}, include: ~w(type style)
+  slot :inner_block, required: true
+
+  def my_button(assigns) do
+    ~H"""
+    <button
+      class={[
+        "text-white bg-#{@color}-700 hover:bg-#{@color}-800 focus:ring-4 focus:ring-#{@color}-300 font-medium rounded-lg text-sm px-5 py-2.5 me-2 mb-2 dark:bg-#{@color}-600 dark:hover:bg-#{@color}-700 focus:outline-none dark:focus:ring-#{@color}-800",
+        @class
+      ]}
+      {@rest}
+    >
+      {render_slot(@inner_block)}
+    </button>
+    """
+```
+
+- Using `attr/3`, you can document and enhance your component:
+  - You can mark an attribute as `required`.
+  - You can set a default value if none is provided using `default`.
+  - You can restrict the possible values using `values`.
+  - You can provide examples of possible values using `examples`.
+  - You can capture all additional properties using an `attr` of type `:global`.
+
+## Components from other modules
+
+using components from other pages:
+```elixir
+defmodule LiveviewWeb.OtherPageLive do
+  use LiveviewWeb, :live_view
+  alias LiveviewWeb.PageLive
+
+  def render(assigns) do
+    ~H"""
+    <h1>OtherPageLive</h1>
+    <PageLive.my_button color="blue">
+      My other button
+    </PageLive.my_button>
+    """
+  end
+end
+```
+
+- You can use components from other modules using the `<MyappWeb.ModuleName.component_name>` syntax.
+- You can use aliases to shorten module function calls, such as `alias MyappWeb.ModuleName`, allowing you to use the `<ModuleName.component_name>` syntax.
+- If a component is used in many places throughout the application, consider placing it in `CoreComponents`.
+- Behind the scenes, `use MyappWeb, :something` inserts code from `MyappWeb`'s `def something() do` into your module, giving you access to the tools needed to do your work.
+
+
+## Multiple slots
+
+custom slots:
+```elixir
+  slot :inner_block, required: true
+
+  def hero(assigns) do
+    ~H"""
+    <div class="bg-gray-800 text-white py-20">
+      <div class="container mx-auto text-center">
+        <h1 class="text-4xl font-bold">{render_slot(@inner_block)}</h1>
+        <p class="mt-4 text-lg">My personal website</p>
+        <.link
+          class="mt-8 bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded mr-2"
+          navigate={~p"/"}
+        >
+          Homepage
+        </.link>
+        <.link
+          class="mt-8 bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded"
+          navigate={~p"/other"}
+        >
+          Get Started
+        </.link>
+      </div>
+    </div>
+    """
+  end
+```
+
+usage:
+```elixir
+  def render(assigns) do
+    ~H"""
+    <.hero>OtherPageLive</.hero>
+    <my_button color="blue">
+      My other button
+    </my_button>
+    """
+  end
+```
+
+- Components can have more than one slot.
+- Named slots can be defined using `<:name>Content</:name>` and rendered using `{render_slot(@name)}`.
+- Any HEEx content outside named slots falls into the `@inner_block` slot.
+
+
+## Slots with attributes
+
+if slots are lists we can do loops and if each slot is a map, we can get properties from them!
+```elixir
+  slot :title do
+    attr :class, :string
+  end
+
+  slot :subtitle
+  slot :inner_block
+
+  def hero(assigns) do
+    ~H"""
+    <div class="bg-gray-800 text-white py-20">
+      <div class="container mx-auto text-center">
+        <h1 :for={title_slot <- @title} class={["text-4xl font-bold", Map.get(title_slot, :class)]}>
+          {render_slot(title_slot)}
+        </h1>
+        <p class="mt-4 text-lg">{render_slot(@subtitle)}</p>
+        {render_slot(@inner_block)}
+      </div>
+    </div>
+    """
+  end
+```
+
+- The component itself isn't much different from what you've seen before. We use a loop with `:for`. For each element, we use the `render_slot/2` function, passing the current item in the loop as the second argument.
+- When a second argument is passed to `render_slot/2`, we can use the special attribute `:let={var}` in the slot definition to store the current looped element in `var`. This simplifies a component that works with loops and keeps the LiveView's `render/1` clean.
+
+```elixir
+  def render(assigns) do
+    ~H"""
+    <.hero>
+      <:title class="text-red-500">IndexLive</:title>
+      <:subtitle>Welcome to my personal website!</:subtitle>
+      <.link
+        class="mt-8 bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded"
+        navigate={~p"/other"}
+      >
+        Get Started
+      </.link>
+    </.hero>
+    This is my homepage
+    """
+  end
+```
+
+- You can simplify loops by creating components.
+- Slots can receive loop variables by passing them as the second argument of `render_slot/2` and receiving them in the slot using `:let={var_name}`.
+- Using slots and components makes LiveView code cleaner.

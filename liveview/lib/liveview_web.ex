@@ -86,6 +86,7 @@ defmodule LiveviewWeb do
       import Phoenix.HTML
       # Core UI components
       import LiveviewWeb.CoreComponents
+      import LiveviewWeb.MyCoreComponents
 
       # Common modules used in templates
       alias Phoenix.LiveView.JS
