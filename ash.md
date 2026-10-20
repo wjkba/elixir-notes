@@ -397,3 +397,50 @@ ticket
 The `:close` action automatically sets the status to `:closed` using `change set_attribute(:status, :closed)`.
 
 **Key takeaway:** Custom actions define not only what an operation is called, but also what attributes it accepts and what changes it performs.
+
+
+# Relationships
+# Ticket Relationships
+
+Use a `relationships do` block to define relationships between resources.
+
+A `belongs_to` relationship connects a ticket to one representative. Ash automatically creates the `representative_id` attribute.
+
+```elixir
+relationships do
+  belongs_to :representative, Tutorial.Support.Representative
+end
+```
+
+Add `:representative_id` to the ticket's create action's accepted attributes so you can assign a representative when creating a ticket.
+
+```elixir
+create :create do
+  accept [:subject, :description, :status, :representative_id]
+end
+```
+
+Create a representative:
+
+```elixir
+joe =
+  Tutorial.Support.Representative
+  |> Ash.Changeset.for_create(:create, %{name: "Joe Armstrong"})
+  |> Ash.create!()
+```
+
+Create a ticket and assign Joe as its representative:
+
+```elixir
+Tutorial.Support.Ticket
+|> Ash.Changeset.for_create(:create, %{
+  subject: "My spoon is too big!",
+  representative_id: joe.id
+})
+|> Ash.create!()
+|> Ash.load!([:representative])
+```
+
+`Ash.load!/2` loads the related representative so you can access it through the ticket's `representative` relationship.
+
+**Key takeaway:** Define relationships with `belongs_to`, and accept the generated foreign key in the action when you want to assign the relationship directly.
