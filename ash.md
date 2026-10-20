@@ -400,7 +400,6 @@ The `:close` action automatically sets the status to `:closed` using `change set
 
 
 # Relationships
-# Ticket Relationships
 
 Use a `relationships do` block to define relationships between resources.
 
@@ -490,3 +489,78 @@ Tutorial.Support.assign_ticket!(ticket, %{representative_id: joe.id})
 ```
 
 **Key takeaway:** Code interfaces provide convenient, named functions for calling resource actions without manually creating changesets.
+
+
+# Aggregates
+
+Aggregates summarize related records. Ash supports `count`, `first`, `sum`, and `list`.
+
+**1. Define the relationship**
+
+In the `Representative` resource, add the inverse relationship to access its tickets.
+
+```elixir
+relationships do
+  has_many :tickets, Tutorial.Support.Ticket
+end
+```
+
+**2. Define the aggregate**
+
+Count the representative's open tickets using a filter.
+
+```elixir
+aggregates do
+  count :count_of_open_tickets, :tickets do
+    filter expr(status == :open)
+  end
+end
+```
+
+Without the filter, the aggregate counts **all tickets**, regardless of status.
+
+**3. Create tickets**
+
+Create a representative and four tickets, assigning three to Joe.
+
+```elixir
+joe = Tutorial.Support.Representative.create!("Joe Armstrong")
+
+[
+  %{subject: "I can't see my eyes!"},
+  %{subject: "I can't find my hand!", representative_id: joe.id},
+  %{subject: "My fridge is flying away!", representative_id: joe.id},
+  %{subject: "My bed is invisible!", representative_id: joe.id}
+]
+|> Ash.bulk_create(Tutorial.Support.Ticket, :open, return_records?: true)
+```
+
+**4. Close the last ticket assigned to Joe**
+
+```elixir
+require Ash.Query
+
+[last_ticket] =
+  Tutorial.Support.Ticket
+  |> Ash.Query.filter(representative_id == ^joe.id)
+  |> Ash.Query.sort(created_at: :desc)
+  |> Ash.Query.limit(1)
+  |> Ash.read!()
+
+Tutorial.Support.Ticket.close!(last_ticket)
+```
+
+**5. Query the aggregate**
+
+Load the aggregate onto Joe and access its value.
+
+```elixir
+joe = Ash.load!(joe, [:count_of_open_tickets])
+joe.count_of_open_tickets
+```
+
+**Result:** `2`
+
+Joe had three assigned tickets, but one was closed, leaving two open tickets.
+
+**Key takeaway:** Aggregates calculate summary values over related records, and filters let you restrict which records are included.
