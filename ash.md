@@ -564,3 +564,34 @@ joe.count_of_open_tickets
 Joe had three assigned tickets, but one was closed, leaving two open tickets.
 
 **Key takeaway:** Aggregates calculate summary values over related records, and filters let you restrict which records are included.
+
+
+# Calculations
+
+Calculations allow you to derive values from resource attributes without storing them in the database.
+
+**1. Define a calculation**
+
+Add a `calculations` block to the `User` resource. Use `expr/1` to concatenate the first and last names with a space.
+
+```elixir
+calculations do
+  calculate :full_name, :string, expr(first_name <> " " <> last_name)
+end
+```
+
+**2. Create a user and load the calculation**
+
+```elixir
+Tutorial.Accounts.User
+|> Ash.Changeset.for_create(:create, %{
+  first_name: "Joe",
+  last_name: "Armstrong"
+})
+|> Ash.create!()
+|> Ash.load!([:full_name])
+```
+
+The resulting `full_name` is `"Joe Armstrong"`.
+
+**Key takeaway:** Calculations derive values from existing attributes and can be loaded using `Ash.load!/2`.
