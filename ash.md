@@ -265,4 +265,88 @@ Ash.destroy!(joe)
 
 **Remember:** Changesets describe the intended changes; Ash functions execute them.
 
+# Attributes
 
+A `Ticket` resource represents a helpdesk ticket with a subject, description, status, and timestamps.
+
+```elixir
+defmodule Tutorial.Support.Ticket do
+  use Ash.Resource,
+    domain: Tutorial.Support,
+    data_layer: Ash.DataLayer.Ets
+
+  actions do
+    defaults [:read]
+
+    create :create do
+      accept [:subject, :description, :status]
+    end
+  end
+
+  attributes do
+    uuid_primary_key :id
+
+    attribute :subject, :string, allow_nil?: false
+    attribute :description, :string
+
+    attribute :status, :atom do
+      constraints one_of: [:open, :closed]
+      default :open
+      allow_nil? false
+    end
+
+    create_timestamp :created_at
+    update_timestamp :updated_at
+  end
+end
+
+defmodule Tutorial.Support do
+  use Ash.Domain
+
+  resources do
+    resource Tutorial.Support.Ticket
+  end
+end
+```
+
+- **Subject:** Required; cannot be `nil`.
+- **Description:** Optional string.
+- **Status:** Must be `:open` or `:closed`. Defaults to `:open` and cannot be `nil`.
+- **Timestamps:** `created_at` tracks creation; `updated_at` tracks the last update.
+
+**Create a ticket**
+
+```elixir
+Tutorial.Support.Ticket
+|> Ash.Changeset.for_create(:create, %{
+  subject: "This is the subject"
+})
+|> Ash.create!()
+```
+
+**Create a closed ticket**
+
+```elixir
+Tutorial.Support.Ticket
+|> Ash.Changeset.for_create(:create, %{
+  subject: "This is the subject",
+  status: :closed
+})
+|> Ash.create!()
+```
+
+**Validation examples**
+
+- Omitting `subject` causes a validation error.
+- Setting `status: :pending` causes a validation error because it is not an allowed value.
+
+**Get the latest created ticket**
+
+Sort by `created_at` in descending order, limit the results to one, and return the single record.
+
+```elixir
+Tutorial.Support.Ticket
+|> Ash.Query.sort(created_at: :desc)
+|> Ash.Query.limit(1)
+|> Ash.read_one!()
+```
