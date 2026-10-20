@@ -350,3 +350,50 @@ Tutorial.Support.Ticket
 |> Ash.Query.limit(1)
 |> Ash.read_one!()
 ```
+
+# Custom Actions
+
+Custom actions give operations meaningful names and let you control their behavior and which attributes can be changed.
+
+- `:open` — Creates a ticket, accepting only `:subject` and `:description`. The status defaults to `:open`.
+- `:close` — Updates a ticket's status to `:closed` without accepting any input attributes.
+
+Define custom actions inside the `actions` block:
+
+```elixir
+actions do
+  defaults [:read]
+
+  create :open do
+    accept [:subject, :description]
+  end
+
+  update :close do
+    accept []
+    change set_attribute(:status, :closed)
+  end
+end
+```
+
+**Open a ticket**
+
+```elixir
+ticket =
+  Tutorial.Support.Ticket
+  |> Ash.Changeset.for_create(:open, %{subject: "My Subject"})
+  |> Ash.create!()
+```
+
+The `:open` action does not allow setting `:status` directly because it only accepts `:subject` and `:description`.
+
+**Close a ticket**
+
+```elixir
+ticket
+|> Ash.Changeset.for_update(:close)
+|> Ash.update!()
+```
+
+The `:close` action automatically sets the status to `:closed` using `change set_attribute(:status, :closed)`.
+
+**Key takeaway:** Custom actions define not only what an operation is called, but also what attributes it accepts and what changes it performs.
