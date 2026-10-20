@@ -444,3 +444,49 @@ Tutorial.Support.Ticket
 `Ash.load!/2` loads the related representative so you can access it through the ticket's `representative` relationship.
 
 **Key takeaway:** Define relationships with `belongs_to`, and accept the generated foreign key in the action when you want to assign the relationship directly.
+
+
+# Code Interfaces
+
+Code interfaces simplify CRUD operations by letting you call functions directly instead of manually building changesets.
+
+Define them inside the domain's `resources` block.
+
+```elixir
+resources do
+  resource Tutorial.Support.Ticket do
+    define :assign_ticket, args: [:representative_id], action: :assign
+    define :open_ticket, args: [:subject, :description], action: :open
+  end
+
+  resource Tutorial.Support.Representative do
+    define :create_representative, args: [:name], action: :create
+  end
+end
+```
+
+**Create a representative**
+
+```elixir
+joe = Tutorial.Support.create_representative!(%{name: "Joe Armstrong"})
+```
+
+**Open a ticket**
+
+```elixir
+ticket =
+  Tutorial.Support.open_ticket!(%{
+    subject: "My subject",
+    description: "My description"
+  })
+```
+
+**Assign a representative to a ticket**
+
+The `:assign` action must accept `:representative_id`.
+
+```elixir
+Tutorial.Support.assign_ticket!(ticket, %{representative_id: joe.id})
+```
+
+**Key takeaway:** Code interfaces provide convenient, named functions for calling resource actions without manually creating changesets.
