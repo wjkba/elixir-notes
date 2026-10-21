@@ -23,4 +23,10 @@ defmodule Tunez.Music.Artist do
     create_timestamp :inserted_at
     update_timestamp :updated_at
   end
+
+  relationships do
+    has_many :albums, Tunez.Music.Album do
+      sort year_released: :desc
+    end
+  end
 end
