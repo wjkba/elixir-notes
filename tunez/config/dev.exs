@@ -64,7 +64,7 @@ config :tunez, TunezWeb.Endpoint,
   ]
 
 # Enable dev routes for dashboard and mailbox
-config :tunez, dev_routes: true
+config :tunez, dev_routes: true, token_signing_secret: "AL84RuIA07s2WQenvxL2iz1IF9KEYxsg"
 
 # Do not include metadata nor timestamps in development logs
 config :logger, :default_formatter, format: "[$level] $message\n"
